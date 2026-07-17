@@ -38,12 +38,15 @@ export default function MutasiPage() {
   async function submit() {
     if (!form.asset_id || !form.to_room_id || !form.reason) return
     const asset = assets.find((a) => a.id === form.asset_id)
+    const { asset: _asset, ...payload } = form
     await supabase.from('asset_mutations').insert({
-      ...form,
+      ...payload,
+      asset_id: form.asset_id,
+      reason: form.reason,
       from_room_id: asset?.room_id ?? null,
       mutation_date: form.mutation_date || new Date().toISOString(),
       approved_by: profile?.id,
-    } as AssetMutation)
+    })
     await supabase.from('assets').update({ room_id: form.to_room_id }).eq('id', form.asset_id)
     setOpen(false)
     setForm({})

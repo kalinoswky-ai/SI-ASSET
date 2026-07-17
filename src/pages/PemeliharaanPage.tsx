@@ -36,7 +36,13 @@ export default function PemeliharaanPage() {
 
   async function submit() {
     if (!form.asset_id || !form.scheduled_date || !form.description) return
-    await supabase.from('asset_maintenance').insert(form as AssetMaintenance)
+    const { asset: _asset, vendor: _vendor, ...payload } = form
+    await supabase.from('asset_maintenance').insert({
+      ...payload,
+      asset_id: form.asset_id,
+      scheduled_date: form.scheduled_date,
+      description: form.description,
+    })
     await supabase.from('assets').update({ status: 'dalam_pemeliharaan' }).eq('id', form.asset_id)
     setOpen(false)
     setForm({})

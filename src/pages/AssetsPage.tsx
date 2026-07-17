@@ -56,16 +56,25 @@ export default function AssetsPage() {
   }
 
   async function handleSave() {
+    if (!form.register_number || !form.name || !form.category_id || !form.acquisition_year || !form.acquisition_value) return
+
     const category = categories.find((c) => c.id === form.category_id)
     const sequence = assets.length + 1
     const assetCode = form.asset_code || generateAssetCode(category?.code ?? 'AST', sequence)
     const qrValue = form.qr_code_value || `${assetCode}-${Date.now()}`
 
+    const { category: _category, room: _room, responsible_person: _responsiblePerson, ...payload } = form
+
     await supabase.from('assets').insert({
-      ...form,
+      ...payload,
+      register_number: form.register_number,
+      name: form.name,
+      category_id: form.category_id,
+      acquisition_year: form.acquisition_year,
+      acquisition_value: form.acquisition_value,
       asset_code: assetCode,
       qr_code_value: qrValue,
-    } as Asset)
+    })
 
     setOpen(false)
     load()

@@ -42,11 +42,16 @@ export default function PeminjamanPage() {
 
   async function submitLoan() {
     if (!profile || !form.asset_id || !form.loan_date || !form.expected_return_date || !form.purpose) return
+    const { asset: _asset, borrower: _borrower, ...payload } = form
     await supabase.from('asset_loans').insert({
-      ...form,
+      ...payload,
+      asset_id: form.asset_id,
+      loan_date: form.loan_date,
+      expected_return_date: form.expected_return_date,
+      purpose: form.purpose,
       borrower_id: profile.id,
       status: 'diajukan',
-    } as AssetLoan)
+    })
     setOpen(false)
     setForm({})
     load()

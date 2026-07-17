@@ -41,7 +41,15 @@ export default function PenghapusanPage() {
 
   async function submit() {
     if (!form.asset_id || !form.disposal_type || !form.disposal_date || !form.reason) return
-    await supabase.from('asset_disposals').insert({ ...form, approved_by: profile?.id } as AssetDisposal)
+    const { asset: _asset, ...payload } = form
+    await supabase.from('asset_disposals').insert({
+      ...payload,
+      asset_id: form.asset_id,
+      disposal_type: form.disposal_type,
+      disposal_date: form.disposal_date,
+      reason: form.reason,
+      approved_by: profile?.id,
+    })
     await supabase.from('assets').update({ status: 'dihapus' }).eq('id', form.asset_id)
     setOpen(false)
     setForm({})

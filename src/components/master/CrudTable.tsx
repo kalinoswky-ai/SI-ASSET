@@ -1,6 +1,9 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Plus, Pencil, Trash2, Search } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import type { Database } from '@/types/database.types'
+
+type CrudTableName = keyof Database['public']['Tables']
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -17,7 +20,7 @@ export interface CrudColumn<T> {
 }
 
 interface CrudTableProps<T extends { id: string }> {
-  tableName: string
+  tableName: CrudTableName
   title: string
   description: string
   columns: CrudColumn<T>[]
@@ -43,7 +46,7 @@ export function CrudTable<T extends { id: string }>({
   async function load() {
     setLoading(true)
     const { data } = await supabase.from(tableName).select('*').order('created_at', { ascending: false })
-    setRows((data ?? []) as T[])
+    setRows((data ?? []) as unknown as T[])
     setLoading(false)
   }
 
@@ -66,9 +69,9 @@ export function CrudTable<T extends { id: string }>({
 
   async function handleSave() {
     if (editing) {
-      await supabase.from(tableName).update(formValue).eq('id', editing.id)
+      await supabase.from(tableName).update(formValue as never).eq('id', editing.id)
     } else {
-      await supabase.from(tableName).insert(formValue)
+      await supabase.from(tableName).insert(formValue as never)
     }
     setOpen(false)
     load()

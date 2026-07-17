@@ -20,26 +20,31 @@ export interface Database {
         }
         Insert: Partial<Database['public']['Tables']['profiles']['Row']> & { id: string; email: string; full_name: string }
         Update: Partial<Database['public']['Tables']['profiles']['Row']>
+        Relationships: []
       }
       asset_categories: {
         Row: { id: string; code: string; name: string; description: string | null; created_at: string }
         Insert: Partial<Database['public']['Tables']['asset_categories']['Row']> & { code: string; name: string }
         Update: Partial<Database['public']['Tables']['asset_categories']['Row']>
+        Relationships: []
       }
       bidang: {
         Row: { id: string; name: string; head_name: string | null; created_at: string }
         Insert: Partial<Database['public']['Tables']['bidang']['Row']> & { name: string }
         Update: Partial<Database['public']['Tables']['bidang']['Row']>
+        Relationships: []
       }
       rooms: {
         Row: { id: string; name: string; building: string | null; floor: string | null; bidang_id: string | null; created_at: string }
         Insert: Partial<Database['public']['Tables']['rooms']['Row']> & { name: string }
         Update: Partial<Database['public']['Tables']['rooms']['Row']>
+        Relationships: []
       }
       suppliers: {
         Row: { id: string; name: string; contact_person: string | null; phone: string | null; address: string | null; created_at: string }
         Insert: Partial<Database['public']['Tables']['suppliers']['Row']> & { name: string }
         Update: Partial<Database['public']['Tables']['suppliers']['Row']>
+        Relationships: []
       }
       assets: {
         Row: {
@@ -72,6 +77,29 @@ export interface Database {
           qr_code_value: string
         }
         Update: Partial<Database['public']['Tables']['assets']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'assets_category_id_fkey'
+            columns: ['category_id']
+            isOneToOne: false
+            referencedRelation: 'asset_categories'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'assets_room_id_fkey'
+            columns: ['room_id']
+            isOneToOne: false
+            referencedRelation: 'rooms'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'assets_responsible_person_id_fkey'
+            columns: ['responsible_person_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
       }
       asset_loans: {
         Row: {
@@ -95,6 +123,29 @@ export interface Database {
           purpose: string
         }
         Update: Partial<Database['public']['Tables']['asset_loans']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'asset_loans_asset_id_fkey'
+            columns: ['asset_id']
+            isOneToOne: false
+            referencedRelation: 'assets'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'asset_loans_borrower_id_fkey'
+            columns: ['borrower_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'asset_loans_approved_by_fkey'
+            columns: ['approved_by']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
       }
       asset_maintenance: {
         Row: {
@@ -114,6 +165,22 @@ export interface Database {
           description: string
         }
         Update: Partial<Database['public']['Tables']['asset_maintenance']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'asset_maintenance_asset_id_fkey'
+            columns: ['asset_id']
+            isOneToOne: false
+            referencedRelation: 'assets'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'asset_maintenance_vendor_id_fkey'
+            columns: ['vendor_id']
+            isOneToOne: false
+            referencedRelation: 'suppliers'
+            referencedColumns: ['id']
+          },
+        ]
       }
       asset_mutations: {
         Row: {
@@ -136,6 +203,15 @@ export interface Database {
           mutation_date: string
         }
         Update: Partial<Database['public']['Tables']['asset_mutations']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'asset_mutations_asset_id_fkey'
+            columns: ['asset_id']
+            isOneToOne: false
+            referencedRelation: 'assets'
+            referencedColumns: ['id']
+          },
+        ]
       }
       asset_disposals: {
         Row: {
@@ -155,6 +231,15 @@ export interface Database {
           reason: string
         }
         Update: Partial<Database['public']['Tables']['asset_disposals']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'asset_disposals_asset_id_fkey'
+            columns: ['asset_id']
+            isOneToOne: false
+            referencedRelation: 'assets'
+            referencedColumns: ['id']
+          },
+        ]
       }
       inventory_checks: {
         Row: {
@@ -174,6 +259,15 @@ export interface Database {
           condition_found: 'baik' | 'rusak_ringan' | 'rusak_berat'
         }
         Update: Partial<Database['public']['Tables']['inventory_checks']['Row']>
+        Relationships: [
+          {
+            foreignKeyName: 'inventory_checks_asset_id_fkey'
+            columns: ['asset_id']
+            isOneToOne: false
+            referencedRelation: 'assets'
+            referencedColumns: ['id']
+          },
+        ]
       }
       notifications: {
         Row: {
@@ -190,6 +284,7 @@ export interface Database {
           message: string
         }
         Update: Partial<Database['public']['Tables']['notifications']['Row']>
+        Relationships: []
       }
       activity_logs: {
         Row: {
@@ -206,6 +301,7 @@ export interface Database {
           entity_type: string
         }
         Update: Partial<Database['public']['Tables']['activity_logs']['Row']>
+        Relationships: []
       }
     }
     Views: Record<string, never>
