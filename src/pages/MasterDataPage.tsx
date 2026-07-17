@@ -1,39 +1,50 @@
 import * as Tabs from '@radix-ui/react-tabs'
+import { Database, Tag, DoorOpen, Building2, Truck } from 'lucide-react'
 import { CrudTable } from '@/components/master/CrudTable'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { FormField } from '@/components/shared/FormField'
+import { PageHeader } from '@/components/shared/PageHeader'
 import { cn } from '@/lib/utils'
 import type { AssetCategory, Bidang, Room, Supplier } from '@/types'
 
-const tabTriggerClass = (active: boolean) =>
-  cn(
-    'px-4 py-2 text-sm font-medium rounded-md transition-colors',
-    active ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-secondary'
-  )
+const tabs = [
+  { value: 'kategori', label: 'Kategori Aset', icon: Tag },
+  { value: 'ruangan', label: 'Ruangan', icon: DoorOpen },
+  { value: 'bidang', label: 'Bidang', icon: Building2 },
+  { value: 'supplier', label: 'Supplier / Vendor', icon: Truck },
+]
 
 export default function MasterDataPage() {
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold">Master Data</h1>
-        <p className="text-muted-foreground text-sm">Kelola data referensi yang dipakai di seluruh modul aset</p>
-      </div>
+    <div>
+      <PageHeader
+        title="Master Data"
+        description="Kelola data referensi yang dipakai di seluruh modul aset"
+        icon={Database}
+        crumbs={[{ label: 'Master Data' }]}
+      />
 
       <Tabs.Root defaultValue="kategori">
-        <Tabs.List className="flex flex-wrap gap-2 border-b pb-3 mb-4">
-          {[
-            { value: 'kategori', label: 'Kategori Aset' },
-            { value: 'ruangan', label: 'Ruangan' },
-            { value: 'bidang', label: 'Bidang' },
-            { value: 'supplier', label: 'Supplier / Vendor' },
-          ].map((t) => (
+        <Tabs.List
+          className="mb-4 flex flex-wrap gap-1.5 rounded-2xl border p-1.5 backdrop-blur-xl"
+          style={{ background: 'var(--surface)', borderColor: 'var(--surface-border)' }}
+        >
+          {tabs.map((t) => (
             <Tabs.Trigger key={t.value} value={t.value} asChild>
-              <button className={tabTriggerClass(false)}>{t.label}</button>
+              <button
+                className={cn(
+                  'flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-medium transition-all duration-200',
+                  'data-[state=active]:bg-gradient-to-r data-[state=active]:from-brand-blue data-[state=active]:to-brand-indigo data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-brand-indigo/25',
+                  'data-[state=inactive]:hover:bg-white/[0.06]'
+                )}
+                style={{ color: 'var(--text-muted)' }}
+              >
+                <t.icon className="h-3.5 w-3.5" /> {t.label}
+              </button>
             </Tabs.Trigger>
           ))}
         </Tabs.List>
 
-        <Tabs.Content value="kategori">
+        <Tabs.Content value="kategori" className="eams-fade-in">
           <CrudTable<AssetCategory>
             tableName="asset_categories"
             title="Kategori Aset"
@@ -46,24 +57,15 @@ export default function MasterDataPage() {
             emptyForm={{ code: '', name: '', description: '' }}
             renderForm={(value, setValue) => (
               <>
-                <div className="space-y-1.5">
-                  <Label>Kode Kategori</Label>
-                  <Input value={value.code ?? ''} onChange={(e) => setValue({ ...value, code: e.target.value.toUpperCase() })} placeholder="Contoh: ELK" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Nama Kategori</Label>
-                  <Input value={value.name ?? ''} onChange={(e) => setValue({ ...value, name: e.target.value })} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Keterangan</Label>
-                  <Input value={value.description ?? ''} onChange={(e) => setValue({ ...value, description: e.target.value })} />
-                </div>
+                <FormField label="Kode Kategori" value={value.code ?? ''} onChange={(e) => setValue({ ...value, code: e.target.value.toUpperCase() })} placeholder="Contoh: ELK" required />
+                <FormField label="Nama Kategori" value={value.name ?? ''} onChange={(e) => setValue({ ...value, name: e.target.value })} required />
+                <FormField label="Keterangan" value={value.description ?? ''} onChange={(e) => setValue({ ...value, description: e.target.value })} />
               </>
             )}
           />
         </Tabs.Content>
 
-        <Tabs.Content value="ruangan">
+        <Tabs.Content value="ruangan" className="eams-fade-in">
           <CrudTable<Room>
             tableName="rooms"
             title="Ruangan"
@@ -76,24 +78,15 @@ export default function MasterDataPage() {
             emptyForm={{ name: '', building: '', floor: '' }}
             renderForm={(value, setValue) => (
               <>
-                <div className="space-y-1.5">
-                  <Label>Nama Ruangan</Label>
-                  <Input value={value.name ?? ''} onChange={(e) => setValue({ ...value, name: e.target.value })} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Gedung</Label>
-                  <Input value={value.building ?? ''} onChange={(e) => setValue({ ...value, building: e.target.value })} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Lantai</Label>
-                  <Input value={value.floor ?? ''} onChange={(e) => setValue({ ...value, floor: e.target.value })} />
-                </div>
+                <FormField label="Nama Ruangan" value={value.name ?? ''} onChange={(e) => setValue({ ...value, name: e.target.value })} required />
+                <FormField label="Gedung" value={value.building ?? ''} onChange={(e) => setValue({ ...value, building: e.target.value })} />
+                <FormField label="Lantai" value={value.floor ?? ''} onChange={(e) => setValue({ ...value, floor: e.target.value })} />
               </>
             )}
           />
         </Tabs.Content>
 
-        <Tabs.Content value="bidang">
+        <Tabs.Content value="bidang" className="eams-fade-in">
           <CrudTable<Bidang>
             tableName="bidang"
             title="Bidang"
@@ -105,20 +98,14 @@ export default function MasterDataPage() {
             emptyForm={{ name: '', head_name: '' }}
             renderForm={(value, setValue) => (
               <>
-                <div className="space-y-1.5">
-                  <Label>Nama Bidang</Label>
-                  <Input value={value.name ?? ''} onChange={(e) => setValue({ ...value, name: e.target.value })} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Kepala Bidang</Label>
-                  <Input value={value.head_name ?? ''} onChange={(e) => setValue({ ...value, head_name: e.target.value })} />
-                </div>
+                <FormField label="Nama Bidang" value={value.name ?? ''} onChange={(e) => setValue({ ...value, name: e.target.value })} required />
+                <FormField label="Kepala Bidang" value={value.head_name ?? ''} onChange={(e) => setValue({ ...value, head_name: e.target.value })} />
               </>
             )}
           />
         </Tabs.Content>
 
-        <Tabs.Content value="supplier">
+        <Tabs.Content value="supplier" className="eams-fade-in">
           <CrudTable<Supplier>
             tableName="suppliers"
             title="Supplier / Vendor"
@@ -131,22 +118,10 @@ export default function MasterDataPage() {
             emptyForm={{ name: '', contact_person: '', phone: '', address: '' }}
             renderForm={(value, setValue) => (
               <>
-                <div className="space-y-1.5">
-                  <Label>Nama Supplier</Label>
-                  <Input value={value.name ?? ''} onChange={(e) => setValue({ ...value, name: e.target.value })} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Nama Kontak</Label>
-                  <Input value={value.contact_person ?? ''} onChange={(e) => setValue({ ...value, contact_person: e.target.value })} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Telepon</Label>
-                  <Input value={value.phone ?? ''} onChange={(e) => setValue({ ...value, phone: e.target.value })} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Alamat</Label>
-                  <Input value={value.address ?? ''} onChange={(e) => setValue({ ...value, address: e.target.value })} />
-                </div>
+                <FormField label="Nama Supplier" value={value.name ?? ''} onChange={(e) => setValue({ ...value, name: e.target.value })} required />
+                <FormField label="Nama Kontak" value={value.contact_person ?? ''} onChange={(e) => setValue({ ...value, contact_person: e.target.value })} />
+                <FormField label="Telepon" value={value.phone ?? ''} onChange={(e) => setValue({ ...value, phone: e.target.value })} />
+                <FormField label="Alamat" value={value.address ?? ''} onChange={(e) => setValue({ ...value, address: e.target.value })} />
               </>
             )}
           />

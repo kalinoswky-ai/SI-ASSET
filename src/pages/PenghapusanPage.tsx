@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react'
-import { Plus } from 'lucide-react'
+import { Plus, Trash2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent } from '@/components/ui/card'
+import { Card } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
+import { PageHeader } from '@/components/shared/PageHeader'
+import { DataTable, type DataTableColumn } from '@/components/shared/DataTable'
+import { FormField, FormSelect } from '@/components/shared/FormField'
+import { useToast } from '@/components/shared/Toast'
 import { formatDate } from '@/lib/utils'
 import type { Asset, AssetDisposal } from '@/types'
 
@@ -20,12 +21,15 @@ const typeLabel: Record<string, string> = {
 
 export default function PenghapusanPage() {
   const { profile } = useAuth()
+  const { toast } = useToast()
   const [items, setItems] = useState<AssetDisposal[]>([])
   const [assets, setAssets] = useState<Asset[]>([])
+  const [loading, setLoading] = useState(true)
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState<Partial<AssetDisposal>>({})
 
   async function load() {
+    setLoading(true)
     const { data: d } = await supabase
       .from('asset_disposals')
       .select('*, asset:assets(*)')
@@ -33,6 +37,7 @@ export default function PenghapusanPage() {
     const { data: a } = await supabase.from('assets').select('*').neq('status', 'dihapus')
     setItems((d ?? []) as unknown as AssetDisposal[])
     setAssets((a ?? []) as Asset[])
+    setLoading(false)
   }
 
   useEffect(() => {
@@ -40,7 +45,10 @@ export default function PenghapusanPage() {
   }, [])
 
   async function submit() {
-    if (!form.asset_id || !form.disposal_type || !form.disposal_date || !form.reason) return
+    if (!form.asset_id || !form.disposal_type || !form.disposal_date || !form.reason) {
+      toast('Lengkapi seluruh kolom wajib terlebih dahulu', 'error')
+      return
+    }
     const { asset: _asset, ...payload } = form
     await supabase.from('asset_disposals').insert({
       ...payload,
@@ -51,80 +59,64 @@ export default function PenghapusanPage() {
       approved_by: profile?.id,
     })
     await supabase.from('assets').update({ status: 'dihapus' }).eq('id', form.asset_id)
+    toast('Penghapusan aset berhasil dicatat', 'success')
     setOpen(false)
     setForm({})
     load()
   }
 
+  const columns: DataTableColumn<AssetDisposal>[] = [
+    { key: 'asset', label: 'Aset', render: (d) => d.asset?.name ?? '-' },
+    { key: 'disposal_type', label: 'Jenis', render: (d) => <Badge variant="destructive">{typeLabel[d.disposal_type]}</Badge> },
+    { key: 'reason', label: 'Alasan', hideOnMobile: true },
+    { key: 'disposal_date', label: 'Tanggal', render: (d) => formatDate(d.disposal_date) },
+  ]
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Penghapusan Aset</h1>
-          <p className="text-muted-foreground text-sm">Aset rusak berat, hibah, atau pemusnahan beserta berita acara</p>
-        </div>
-        <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-1" /> Catat Penghapusan</Button>
-      </div>
+    <div>
+      <PageHeader
+        title="Penghapusan Aset"
+        description="Aset rusak berat, hibah, atau pemusnahan beserta berita acara"
+        icon={Trash2}
+        crumbs={[{ label: 'Penghapusan' }]}
+        actions={<Button onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-1" /> Catat Penghapusan</Button>}
+      />
 
       <Card>
-        <CardContent className="pt-6">
-          <div className="overflow-x-auto rounded-md border">
-            <table className="w-full text-sm">
-              <thead className="bg-secondary/50">
-                <tr>
-                  <th className="px-4 py-2 text-left font-medium">Aset</th>
-                  <th className="px-4 py-2 text-left font-medium">Jenis</th>
-                  <th className="px-4 py-2 text-left font-medium">Alasan</th>
-                  <th className="px-4 py-2 text-left font-medium">Tanggal</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.length === 0 ? (
-                  <tr><td colSpan={4} className="px-4 py-6 text-center text-muted-foreground">Belum ada riwayat penghapusan.</td></tr>
-                ) : items.map((d) => (
-                  <tr key={d.id} className="border-t">
-                    <td className="px-4 py-2">{d.asset?.name ?? '-'}</td>
-                    <td className="px-4 py-2"><Badge variant="destructive">{typeLabel[d.disposal_type]}</Badge></td>
-                    <td className="px-4 py-2">{d.reason}</td>
-                    <td className="px-4 py-2">{formatDate(d.disposal_date)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
+        <div className="p-5 md:p-6">
+          <DataTable<AssetDisposal>
+            columns={columns}
+            data={items}
+            loading={loading}
+            onRefresh={load}
+            exportFileName="penghapusan-aset"
+            searchPlaceholder="Cari aset atau alasan..."
+            searchText={(d) => `${d.asset?.name ?? ''} ${d.reason}`}
+            emptyTitle="Belum ada riwayat penghapusan"
+            emptyDescription="Catat penghapusan aset pertama menggunakan tombol di atas."
+          />
+        </div>
       </Card>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>Catat Penghapusan Aset</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <div className="space-y-1.5">
-              <Label>Aset</Label>
-              <Select value={form.asset_id} onValueChange={(v) => setForm({ ...form, asset_id: v })}>
-                <SelectTrigger><SelectValue placeholder="Pilih aset" /></SelectTrigger>
-                <SelectContent>{assets.map((a) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Jenis Penghapusan</Label>
-              <Select value={form.disposal_type} onValueChange={(v) => setForm({ ...form, disposal_type: v as AssetDisposal['disposal_type'] })}>
-                <SelectTrigger><SelectValue placeholder="Pilih jenis" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="rusak_berat">Rusak Berat</SelectItem>
-                  <SelectItem value="hibah">Hibah</SelectItem>
-                  <SelectItem value="pemusnahan">Pemusnahan</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Tanggal Penghapusan</Label>
-              <Input type="date" value={form.disposal_date?.slice(0, 10) ?? ''} onChange={(e) => setForm({ ...form, disposal_date: e.target.value })} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Alasan / Keterangan</Label>
-              <Input value={form.reason ?? ''} onChange={(e) => setForm({ ...form, reason: e.target.value })} />
-            </div>
+            <FormSelect label="Aset" placeholder="Pilih aset" value={form.asset_id} onValueChange={(v) => setForm({ ...form, asset_id: v })} options={assets.map((a) => ({ value: a.id, label: a.name }))} required />
+            <FormSelect
+              label="Jenis Penghapusan"
+              placeholder="Pilih jenis"
+              value={form.disposal_type}
+              onValueChange={(v) => setForm({ ...form, disposal_type: v as AssetDisposal['disposal_type'] })}
+              options={[
+                { value: 'rusak_berat', label: 'Rusak Berat' },
+                { value: 'hibah', label: 'Hibah' },
+                { value: 'pemusnahan', label: 'Pemusnahan' },
+              ]}
+              required
+            />
+            <FormField label="Tanggal Penghapusan" type="date" value={form.disposal_date?.slice(0, 10) ?? ''} onChange={(e) => setForm({ ...form, disposal_date: e.target.value })} required />
+            <FormField label="Alasan / Keterangan" value={form.reason ?? ''} onChange={(e) => setForm({ ...form, reason: e.target.value })} required />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Batal</Button>

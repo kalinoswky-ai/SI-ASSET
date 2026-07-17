@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react'
-import { Plus, Check, X, Undo2 } from 'lucide-react'
+import { Plus, Check, X, Undo2, HandCoins } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
+import { PageHeader } from '@/components/shared/PageHeader'
+import { DataTable, type DataTableColumn } from '@/components/shared/DataTable'
+import { FormField, FormSelect } from '@/components/shared/FormField'
+import { useToast } from '@/components/shared/Toast'
 import { formatDate } from '@/lib/utils'
 import type { Asset, AssetLoan } from '@/types'
 
@@ -19,14 +20,24 @@ const statusVariant: Record<string, 'success' | 'warning' | 'destructive' | 'sec
   dikembalikan: 'secondary',
 }
 
+const statusText: Record<string, string> = {
+  diajukan: 'Diajukan',
+  disetujui: 'Disetujui',
+  ditolak: 'Ditolak',
+  dikembalikan: 'Dikembalikan',
+}
+
 export default function PeminjamanPage() {
   const { profile, hasRole } = useAuth()
+  const { toast } = useToast()
   const [loans, setLoans] = useState<AssetLoan[]>([])
   const [assets, setAssets] = useState<Asset[]>([])
+  const [loading, setLoading] = useState(true)
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState<Partial<AssetLoan>>({})
 
   async function load() {
+    setLoading(true)
     const { data: l } = await supabase
       .from('asset_loans')
       .select('*, asset:assets(*), borrower:profiles!asset_loans_borrower_id_fkey(*)')
@@ -34,6 +45,7 @@ export default function PeminjamanPage() {
     const { data: a } = await supabase.from('assets').select('*').eq('status', 'aktif')
     setLoans((l ?? []) as unknown as AssetLoan[])
     setAssets((a ?? []) as Asset[])
+    setLoading(false)
   }
 
   useEffect(() => {
@@ -41,7 +53,10 @@ export default function PeminjamanPage() {
   }, [])
 
   async function submitLoan() {
-    if (!profile || !form.asset_id || !form.loan_date || !form.expected_return_date || !form.purpose) return
+    if (!profile || !form.asset_id || !form.loan_date || !form.expected_return_date || !form.purpose) {
+      toast('Lengkapi seluruh kolom wajib terlebih dahulu', 'error')
+      return
+    }
     const { asset: _asset, borrower: _borrower, ...payload } = form
     await supabase.from('asset_loans').insert({
       ...payload,
@@ -52,6 +67,7 @@ export default function PeminjamanPage() {
       borrower_id: profile.id,
       status: 'diajukan',
     })
+    toast('Pengajuan peminjaman berhasil dikirim', 'success')
     setOpen(false)
     setForm({})
     load()
@@ -60,97 +76,83 @@ export default function PeminjamanPage() {
   async function approve(loan: AssetLoan, approved: boolean) {
     await supabase.from('asset_loans').update({ status: approved ? 'disetujui' : 'ditolak', approved_by: profile?.id }).eq('id', loan.id)
     if (approved) await supabase.from('assets').update({ status: 'dipinjam' }).eq('id', loan.asset_id)
+    toast(approved ? 'Peminjaman disetujui' : 'Peminjaman ditolak', approved ? 'success' : 'info')
     load()
   }
 
   async function returnAsset(loan: AssetLoan) {
     await supabase.from('asset_loans').update({ status: 'dikembalikan', actual_return_date: new Date().toISOString() }).eq('id', loan.id)
     await supabase.from('assets').update({ status: 'aktif' }).eq('id', loan.asset_id)
+    toast('Aset berhasil dikembalikan', 'success')
     load()
   }
 
+  const columns: DataTableColumn<AssetLoan>[] = [
+    { key: 'asset', label: 'Aset', render: (l) => l.asset?.name ?? '-' },
+    { key: 'borrower', label: 'Peminjam', render: (l) => l.borrower?.full_name ?? '-' },
+    { key: 'loan_date', label: 'Tgl Pinjam', hideOnMobile: true, render: (l) => formatDate(l.loan_date) },
+    { key: 'expected_return_date', label: 'Rencana Kembali', hideOnMobile: true, render: (l) => formatDate(l.expected_return_date) },
+    { key: 'status', label: 'Status', render: (l) => <Badge variant={statusVariant[l.status]}>{statusText[l.status] ?? l.status}</Badge> },
+  ]
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Peminjaman Aset</h1>
-          <p className="text-muted-foreground text-sm">Pengajuan, persetujuan, dan pengembalian peminjaman barang</p>
-        </div>
-        <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-1" /> Ajukan Peminjaman</Button>
-      </div>
+    <div>
+      <PageHeader
+        title="Peminjaman Aset"
+        description="Pengajuan, persetujuan, dan pengembalian peminjaman barang"
+        icon={HandCoins}
+        crumbs={[{ label: 'Peminjaman' }]}
+        actions={<Button onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-1" /> Ajukan Peminjaman</Button>}
+      />
 
       <Card>
-        <CardContent className="pt-6">
-          <div className="overflow-x-auto rounded-md border">
-            <table className="w-full text-sm">
-              <thead className="bg-secondary/50">
-                <tr>
-                  <th className="px-4 py-2 text-left font-medium">Aset</th>
-                  <th className="px-4 py-2 text-left font-medium">Peminjam</th>
-                  <th className="px-4 py-2 text-left font-medium">Tgl Pinjam</th>
-                  <th className="px-4 py-2 text-left font-medium">Rencana Kembali</th>
-                  <th className="px-4 py-2 text-left font-medium">Status</th>
-                  <th className="px-4 py-2 text-right font-medium">Aksi</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loans.length === 0 ? (
-                  <tr><td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">Belum ada data peminjaman.</td></tr>
-                ) : loans.map((l) => (
-                  <tr key={l.id} className="border-t">
-                    <td className="px-4 py-2">{l.asset?.name ?? '-'}</td>
-                    <td className="px-4 py-2">{l.borrower?.full_name ?? '-'}</td>
-                    <td className="px-4 py-2">{formatDate(l.loan_date)}</td>
-                    <td className="px-4 py-2">{formatDate(l.expected_return_date)}</td>
-                    <td className="px-4 py-2"><Badge variant={statusVariant[l.status]}>{l.status}</Badge></td>
-                    <td className="px-4 py-2 text-right space-x-1">
-                      {l.status === 'diajukan' && hasRole('admin', 'pengurus_barang') && (
-                        <>
-                          <Button size="icon" variant="ghost" onClick={() => approve(l, true)}><Check className="h-4 w-4 text-emerald-600" /></Button>
-                          <Button size="icon" variant="ghost" onClick={() => approve(l, false)}><X className="h-4 w-4 text-destructive" /></Button>
-                        </>
-                      )}
-                      {l.status === 'disetujui' && (
-                        <Button size="sm" variant="outline" onClick={() => returnAsset(l)}>
-                          <Undo2 className="h-4 w-4 mr-1" /> Kembalikan
-                        </Button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
+        <div className="p-5 md:p-6">
+          <DataTable<AssetLoan>
+            columns={columns}
+            data={loans}
+            loading={loading}
+            onRefresh={load}
+            exportFileName="peminjaman-aset"
+            searchPlaceholder="Cari aset atau peminjam..."
+            searchText={(l) => `${l.asset?.name ?? ''} ${l.borrower?.full_name ?? ''}`}
+            emptyTitle="Belum ada data peminjaman"
+            emptyDescription="Ajukan peminjaman pertama menggunakan tombol di atas."
+            rowActions={(l) => (
+              <div className="flex items-center justify-end gap-1">
+                {l.status === 'diajukan' && hasRole('admin', 'pengurus_barang') && (
+                  <>
+                    <Button size="icon" variant="ghost" onClick={() => approve(l, true)} title="Setujui"><Check className="h-4 w-4 text-emerald-400" /></Button>
+                    <Button size="icon" variant="ghost" onClick={() => approve(l, false)} title="Tolak"><X className="h-4 w-4 text-red-400" /></Button>
+                  </>
+                )}
+                {l.status === 'disetujui' && (
+                  <Button size="sm" variant="outline" onClick={() => returnAsset(l)}>
+                    <Undo2 className="h-3.5 w-3.5 mr-1" /> Kembalikan
+                  </Button>
+                )}
+              </div>
+            )}
+          />
+        </div>
       </Card>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>Ajukan Peminjaman</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <div className="space-y-1.5">
-              <Label>Aset</Label>
-              <Select value={form.asset_id} onValueChange={(v) => setForm({ ...form, asset_id: v })}>
-                <SelectTrigger><SelectValue placeholder="Pilih aset yang tersedia" /></SelectTrigger>
-                <SelectContent>
-                  {assets.map((a) => <SelectItem key={a.id} value={a.id}>{a.name} ({a.asset_code})</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
+            <FormSelect
+              label="Aset"
+              placeholder="Pilih aset yang tersedia"
+              value={form.asset_id}
+              onValueChange={(v) => setForm({ ...form, asset_id: v })}
+              options={assets.map((a) => ({ value: a.id, label: `${a.name} (${a.asset_code})` }))}
+              required
+            />
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>Tanggal Pinjam</Label>
-                <Input type="date" value={form.loan_date?.slice(0, 10) ?? ''} onChange={(e) => setForm({ ...form, loan_date: e.target.value })} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Rencana Kembali</Label>
-                <Input type="date" value={form.expected_return_date?.slice(0, 10) ?? ''} onChange={(e) => setForm({ ...form, expected_return_date: e.target.value })} />
-              </div>
+              <FormField label="Tanggal Pinjam" type="date" value={form.loan_date?.slice(0, 10) ?? ''} onChange={(e) => setForm({ ...form, loan_date: e.target.value })} required />
+              <FormField label="Rencana Kembali" type="date" value={form.expected_return_date?.slice(0, 10) ?? ''} onChange={(e) => setForm({ ...form, expected_return_date: e.target.value })} required />
             </div>
-            <div className="space-y-1.5">
-              <Label>Tujuan Peminjaman</Label>
-              <Input value={form.purpose ?? ''} onChange={(e) => setForm({ ...form, purpose: e.target.value })} placeholder="Contoh: Kegiatan audit lapangan" />
-            </div>
+            <FormField label="Tujuan Peminjaman" value={form.purpose ?? ''} onChange={(e) => setForm({ ...form, purpose: e.target.value })} hint="Contoh: Kegiatan audit lapangan" required />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Batal</Button>

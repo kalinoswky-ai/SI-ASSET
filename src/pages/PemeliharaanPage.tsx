@@ -1,24 +1,28 @@
 import { useEffect, useState } from 'react'
-import { Plus, CheckCircle2 } from 'lucide-react'
+import { Plus, CheckCircle2, Wrench } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
+import { PageHeader } from '@/components/shared/PageHeader'
+import { DataTable, type DataTableColumn } from '@/components/shared/DataTable'
+import { FormField, FormSelect } from '@/components/shared/FormField'
+import { useToast } from '@/components/shared/Toast'
 import { formatDate, formatRupiah } from '@/lib/utils'
 import type { Asset, AssetMaintenance, Supplier } from '@/types'
 
 export default function PemeliharaanPage() {
+  const { toast } = useToast()
   const [items, setItems] = useState<AssetMaintenance[]>([])
   const [assets, setAssets] = useState<Asset[]>([])
   const [vendors, setVendors] = useState<Supplier[]>([])
+  const [loading, setLoading] = useState(true)
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState<Partial<AssetMaintenance>>({})
 
   async function load() {
+    setLoading(true)
     const { data: m } = await supabase
       .from('asset_maintenance')
       .select('*, asset:assets(*), vendor:suppliers(*)')
@@ -28,6 +32,7 @@ export default function PemeliharaanPage() {
     setItems((m ?? []) as unknown as AssetMaintenance[])
     setAssets((a ?? []) as Asset[])
     setVendors((v ?? []) as Supplier[])
+    setLoading(false)
   }
 
   useEffect(() => {
@@ -35,7 +40,10 @@ export default function PemeliharaanPage() {
   }, [])
 
   async function submit() {
-    if (!form.asset_id || !form.scheduled_date || !form.description) return
+    if (!form.asset_id || !form.scheduled_date || !form.description) {
+      toast('Lengkapi seluruh kolom wajib terlebih dahulu', 'error')
+      return
+    }
     const { asset: _asset, vendor: _vendor, ...payload } = form
     await supabase.from('asset_maintenance').insert({
       ...payload,
@@ -44,6 +52,7 @@ export default function PemeliharaanPage() {
       description: form.description,
     })
     await supabase.from('assets').update({ status: 'dalam_pemeliharaan' }).eq('id', form.asset_id)
+    toast('Jadwal pemeliharaan berhasil disimpan', 'success')
     setOpen(false)
     setForm({})
     load()
@@ -52,92 +61,66 @@ export default function PemeliharaanPage() {
   async function complete(item: AssetMaintenance) {
     await supabase.from('asset_maintenance').update({ completed_date: new Date().toISOString() }).eq('id', item.id)
     await supabase.from('assets').update({ status: 'aktif' }).eq('id', item.asset_id)
+    toast('Pemeliharaan ditandai selesai', 'success')
     load()
   }
 
+  const columns: DataTableColumn<AssetMaintenance>[] = [
+    { key: 'asset', label: 'Aset', render: (m) => m.asset?.name ?? '-' },
+    { key: 'scheduled_date', label: 'Jadwal', render: (m) => formatDate(m.scheduled_date) },
+    { key: 'vendor', label: 'Vendor', hideOnMobile: true, render: (m) => m.vendor?.name ?? '-' },
+    { key: 'cost', label: 'Biaya', hideOnMobile: true, render: (m) => formatRupiah(m.cost), sortValue: (m) => m.cost ?? 0 },
+    {
+      key: 'status',
+      label: 'Status',
+      render: (m) => <Badge variant={m.completed_date ? 'success' : 'warning'}>{m.completed_date ? 'Selesai' : 'Berjalan'}</Badge>,
+    },
+  ]
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Pemeliharaan Aset</h1>
-          <p className="text-muted-foreground text-sm">Jadwal servis, biaya, dan vendor pemeliharaan barang</p>
-        </div>
-        <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-1" /> Jadwalkan Pemeliharaan</Button>
-      </div>
+    <div>
+      <PageHeader
+        title="Pemeliharaan Aset"
+        description="Jadwal servis, biaya, dan vendor pemeliharaan barang"
+        icon={Wrench}
+        crumbs={[{ label: 'Pemeliharaan' }]}
+        actions={<Button onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-1" /> Jadwalkan Pemeliharaan</Button>}
+      />
 
       <Card>
-        <CardContent className="pt-6">
-          <div className="overflow-x-auto rounded-md border">
-            <table className="w-full text-sm">
-              <thead className="bg-secondary/50">
-                <tr>
-                  <th className="px-4 py-2 text-left font-medium">Aset</th>
-                  <th className="px-4 py-2 text-left font-medium">Jadwal</th>
-                  <th className="px-4 py-2 text-left font-medium">Vendor</th>
-                  <th className="px-4 py-2 text-left font-medium">Biaya</th>
-                  <th className="px-4 py-2 text-left font-medium">Status</th>
-                  <th className="px-4 py-2 text-right font-medium">Aksi</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.length === 0 ? (
-                  <tr><td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">Belum ada jadwal pemeliharaan.</td></tr>
-                ) : items.map((m) => (
-                  <tr key={m.id} className="border-t">
-                    <td className="px-4 py-2">{m.asset?.name ?? '-'}</td>
-                    <td className="px-4 py-2">{formatDate(m.scheduled_date)}</td>
-                    <td className="px-4 py-2">{m.vendor?.name ?? '-'}</td>
-                    <td className="px-4 py-2">{formatRupiah(m.cost)}</td>
-                    <td className="px-4 py-2">
-                      <Badge variant={m.completed_date ? 'success' : 'warning'}>{m.completed_date ? 'Selesai' : 'Berjalan'}</Badge>
-                    </td>
-                    <td className="px-4 py-2 text-right">
-                      {!m.completed_date && (
-                        <Button size="sm" variant="outline" onClick={() => complete(m)}>
-                          <CheckCircle2 className="h-4 w-4 mr-1" /> Tandai Selesai
-                        </Button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
+        <div className="p-5 md:p-6">
+          <DataTable<AssetMaintenance>
+            columns={columns}
+            data={items}
+            loading={loading}
+            onRefresh={load}
+            exportFileName="pemeliharaan-aset"
+            searchPlaceholder="Cari aset atau vendor..."
+            searchText={(m) => `${m.asset?.name ?? ''} ${m.vendor?.name ?? ''}`}
+            emptyTitle="Belum ada jadwal pemeliharaan"
+            emptyDescription="Jadwalkan pemeliharaan pertama menggunakan tombol di atas."
+            rowActions={(m) =>
+              !m.completed_date ? (
+                <Button size="sm" variant="outline" onClick={() => complete(m)}>
+                  <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Selesai
+                </Button>
+              ) : null
+            }
+          />
+        </div>
       </Card>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>Jadwalkan Pemeliharaan</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <div className="space-y-1.5">
-              <Label>Aset</Label>
-              <Select value={form.asset_id} onValueChange={(v) => setForm({ ...form, asset_id: v })}>
-                <SelectTrigger><SelectValue placeholder="Pilih aset" /></SelectTrigger>
-                <SelectContent>{assets.map((a) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Vendor</Label>
-              <Select value={form.vendor_id ?? undefined} onValueChange={(v) => setForm({ ...form, vendor_id: v })}>
-                <SelectTrigger><SelectValue placeholder="Pilih vendor" /></SelectTrigger>
-                <SelectContent>{vendors.map((v) => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
+            <FormSelect label="Aset" placeholder="Pilih aset" value={form.asset_id} onValueChange={(v) => setForm({ ...form, asset_id: v })} options={assets.map((a) => ({ value: a.id, label: a.name }))} required />
+            <FormSelect label="Vendor" placeholder="Pilih vendor" value={form.vendor_id ?? undefined} onValueChange={(v) => setForm({ ...form, vendor_id: v })} options={vendors.map((v) => ({ value: v.id, label: v.name }))} />
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>Tanggal Jadwal</Label>
-                <Input type="date" value={form.scheduled_date?.slice(0, 10) ?? ''} onChange={(e) => setForm({ ...form, scheduled_date: e.target.value })} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Estimasi Biaya (Rp)</Label>
-                <Input type="number" value={form.cost ?? ''} onChange={(e) => setForm({ ...form, cost: Number(e.target.value) })} />
-              </div>
+              <FormField label="Tanggal Jadwal" type="date" value={form.scheduled_date?.slice(0, 10) ?? ''} onChange={(e) => setForm({ ...form, scheduled_date: e.target.value })} required />
+              <FormField label="Estimasi Biaya (Rp)" type="number" value={form.cost ?? ''} onChange={(e) => setForm({ ...form, cost: Number(e.target.value) })} />
             </div>
-            <div className="space-y-1.5">
-              <Label>Deskripsi Pekerjaan</Label>
-              <Input value={form.description ?? ''} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Contoh: Servis AC ruang arsip" />
-            </div>
+            <FormField label="Deskripsi Pekerjaan" value={form.description ?? ''} onChange={(e) => setForm({ ...form, description: e.target.value })} hint="Contoh: Servis AC ruang arsip" required />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Batal</Button>

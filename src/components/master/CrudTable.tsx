@@ -1,17 +1,19 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { Plus, Pencil, Trash2, Search } from 'lucide-react'
+import { Plus, Pencil, Trash2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import type { Database } from '@/types/database.types'
 
 type CrudTableName = keyof Database['public']['Tables']
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import {
-  Card, CardContent, CardHeader, CardTitle,
+  Card, CardContent, CardHeader, CardTitle, CardDescription,
 } from '@/components/ui/card'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog'
+import { DataTable, type DataTableColumn } from '@/components/shared/DataTable'
+import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
+import { useToast } from '@/components/shared/Toast'
 
 export interface CrudColumn<T> {
   key: keyof T
@@ -36,12 +38,13 @@ export function CrudTable<T extends { id: string }>({
   renderForm,
   emptyForm,
 }: CrudTableProps<T>) {
+  const { toast } = useToast()
   const [rows, setRows] = useState<T[]>([])
   const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState('')
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<T | null>(null)
   const [formValue, setFormValue] = useState<Partial<T>>(emptyForm)
+  const [deleteTarget, setDeleteTarget] = useState<T | null>(null)
 
   async function load() {
     setLoading(true)
@@ -70,86 +73,58 @@ export function CrudTable<T extends { id: string }>({
   async function handleSave() {
     if (editing) {
       await supabase.from(tableName).update(formValue as never).eq('id', editing.id)
+      toast('Data berhasil diperbarui', 'success')
     } else {
       await supabase.from(tableName).insert(formValue as never)
+      toast('Data berhasil ditambahkan', 'success')
     }
     setOpen(false)
     load()
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm('Hapus data ini?')) return
-    await supabase.from(tableName).delete().eq('id', id)
+  async function handleDelete(row: T) {
+    await supabase.from(tableName).delete().eq('id', row.id)
+    toast('Data berhasil dihapus', 'success')
     load()
   }
 
-  const filtered = rows.filter((r) =>
-    JSON.stringify(r).toLowerCase().includes(search.toLowerCase())
-  )
+  const dataColumns: DataTableColumn<T>[] = columns.map((c) => ({
+    key: String(c.key),
+    label: c.label,
+    render: c.render,
+  }))
 
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0">
         <div>
           <CardTitle>{title}</CardTitle>
-          <p className="text-sm text-muted-foreground mt-1">{description}</p>
+          <CardDescription className="mt-1">{description}</CardDescription>
         </div>
         <Button onClick={openCreate}>
           <Plus className="h-4 w-4 mr-1" /> Tambah
         </Button>
       </CardHeader>
       <CardContent>
-        <div className="relative mb-4 max-w-sm">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Cari data..." className="pl-8" value={search} onChange={(e) => setSearch(e.target.value)} />
-        </div>
-        <div className="overflow-x-auto rounded-md border">
-          <table className="w-full text-sm">
-            <thead className="bg-secondary/50">
-              <tr>
-                {columns.map((c) => (
-                  <th key={String(c.key)} className="px-4 py-2 text-left font-medium">
-                    {c.label}
-                  </th>
-                ))}
-                <th className="px-4 py-2 text-right font-medium">Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={columns.length + 1} className="px-4 py-6 text-center text-muted-foreground">
-                    Memuat data...
-                  </td>
-                </tr>
-              ) : filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={columns.length + 1} className="px-4 py-6 text-center text-muted-foreground">
-                    Belum ada data.
-                  </td>
-                </tr>
-              ) : (
-                filtered.map((row) => (
-                  <tr key={row.id} className="border-t">
-                    {columns.map((c) => (
-                      <td key={String(c.key)} className="px-4 py-2">
-                        {c.render ? c.render(row) : String(row[c.key] ?? '-')}
-                      </td>
-                    ))}
-                    <td className="px-4 py-2 text-right space-x-1">
-                      <Button variant="ghost" size="icon" onClick={() => openEdit(row)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleDelete(row.id)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+        <DataTable<T>
+          columns={dataColumns}
+          data={rows}
+          loading={loading}
+          onRefresh={load}
+          exportFileName={String(tableName)}
+          emptyTitle="Belum ada data"
+          emptyDescription="Klik tombol Tambah untuk menambahkan data baru."
+          rowActions={(row) => (
+            <div className="flex items-center justify-end gap-1">
+              <Button variant="ghost" size="icon" onClick={() => openEdit(row)} title="Edit">
+                <Pencil className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(row)} title="Hapus">
+                <Trash2 className="h-4 w-4 text-red-400" />
+              </Button>
+            </div>
+          )}
+        />
       </CardContent>
 
       <Dialog open={open} onOpenChange={setOpen}>
@@ -164,6 +139,14 @@ export function CrudTable<T extends { id: string }>({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(v) => !v && setDeleteTarget(null)}
+        title="Hapus data ini?"
+        description="Tindakan ini tidak dapat dibatalkan."
+        onConfirm={() => deleteTarget && handleDelete(deleteTarget)}
+      />
     </Card>
   )
 }

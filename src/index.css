@@ -93,3 +93,82 @@
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
+
+/* ---------------------------------------------------------------------- */
+/* Shared premium-theme utility classes for form controls & surfaces.     */
+/* ---------------------------------------------------------------------- */
+.eams-field {
+  border-color: var(--surface-border);
+  color: var(--text-primary);
+  background: var(--surface);
+}
+.eams-field::placeholder {
+  color: var(--text-faint);
+}
+.eams-field:focus {
+  border-color: rgba(37, 99, 235, 0.6);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+}
+
+.eams-card {
+  box-shadow: 0 8px 30px -18px rgba(0, 0, 0, 0.45);
+}
+
+.eams-outline-btn {
+  border-color: var(--surface-border);
+  color: var(--text-primary);
+}
+.eams-secondary-btn {
+  background: var(--surface-strong);
+  border-color: var(--surface-border);
+  color: var(--text-primary);
+}
+.eams-ghost-btn {
+  color: var(--text-muted);
+}
+
+.eams-ripple {
+  isolation: isolate;
+}
+.eams-ripple-dot {
+  position: absolute;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.5);
+  transform: scale(0);
+  animation: eams-ripple-anim 0.6s ease-out;
+  pointer-events: none;
+}
+@keyframes eams-ripple-anim {
+  to {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+
+.eams-skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--surface-strong);
+  border-radius: 0.75rem;
+}
+.eams-skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.18), transparent);
+  animation: shimmer 1.8s ease-in-out infinite;
+}
+
+.eams-fade-in {
+  animation: eams-fade-in 0.35s ease-out both;
+}
+@keyframes eams-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

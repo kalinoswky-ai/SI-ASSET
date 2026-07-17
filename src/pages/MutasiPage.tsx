@@ -1,25 +1,29 @@
 import { useEffect, useState } from 'react'
-import { Plus, ArrowRight } from 'lucide-react'
+import { Plus, ArrowRight, ArrowLeftRight } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
+import { PageHeader } from '@/components/shared/PageHeader'
+import { DataTable, type DataTableColumn } from '@/components/shared/DataTable'
+import { FormField, FormSelect } from '@/components/shared/FormField'
+import { useToast } from '@/components/shared/Toast'
 import { formatDate } from '@/lib/utils'
 import type { Asset, AssetMutation, Room } from '@/types'
 
 export default function MutasiPage() {
   const { profile } = useAuth()
+  const { toast } = useToast()
   const [items, setItems] = useState<AssetMutation[]>([])
   const [assets, setAssets] = useState<Asset[]>([])
   const [rooms, setRooms] = useState<Room[]>([])
+  const [loading, setLoading] = useState(true)
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState<Partial<AssetMutation>>({})
 
   async function load() {
+    setLoading(true)
     const { data: m } = await supabase
       .from('asset_mutations')
       .select('*, asset:assets(*)')
@@ -29,6 +33,7 @@ export default function MutasiPage() {
     setItems((m ?? []) as unknown as AssetMutation[])
     setAssets((a ?? []) as Asset[])
     setRooms((r ?? []) as Room[])
+    setLoading(false)
   }
 
   useEffect(() => {
@@ -36,7 +41,10 @@ export default function MutasiPage() {
   }, [])
 
   async function submit() {
-    if (!form.asset_id || !form.to_room_id || !form.reason) return
+    if (!form.asset_id || !form.to_room_id || !form.reason) {
+      toast('Lengkapi seluruh kolom wajib terlebih dahulu', 'error')
+      return
+    }
     const asset = assets.find((a) => a.id === form.asset_id)
     const { asset: _asset, ...payload } = form
     await supabase.from('asset_mutations').insert({
@@ -48,6 +56,7 @@ export default function MutasiPage() {
       approved_by: profile?.id,
     })
     await supabase.from('assets').update({ room_id: form.to_room_id }).eq('id', form.asset_id)
+    toast('Mutasi berhasil dicatat', 'success')
     setOpen(false)
     setForm({})
     load()
@@ -57,73 +66,56 @@ export default function MutasiPage() {
     return rooms.find((r) => r.id === id)?.name ?? '-'
   }
 
+  const columns: DataTableColumn<AssetMutation>[] = [
+    { key: 'asset', label: 'Aset', render: (m) => m.asset?.name ?? '-' },
+    {
+      key: 'perpindahan',
+      label: 'Perpindahan',
+      sortable: false,
+      render: (m) => (
+        <span className="flex items-center gap-1.5 text-xs">
+          {roomName(m.from_room_id)} <ArrowRight className="h-3 w-3" style={{ color: 'var(--text-faint)' }} /> {roomName(m.to_room_id)}
+        </span>
+      ),
+    },
+    { key: 'reason', label: 'Alasan', hideOnMobile: true },
+    { key: 'mutation_date', label: 'Tanggal', render: (m) => formatDate(m.mutation_date) },
+  ]
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Mutasi Barang</h1>
-          <p className="text-muted-foreground text-sm">Perpindahan aset antar ruangan, bidang, atau pengguna</p>
-        </div>
-        <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-1" /> Catat Mutasi</Button>
-      </div>
+    <div>
+      <PageHeader
+        title="Mutasi Barang"
+        description="Perpindahan aset antar ruangan, bidang, atau pengguna"
+        icon={ArrowLeftRight}
+        crumbs={[{ label: 'Mutasi Barang' }]}
+        actions={<Button onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-1" /> Catat Mutasi</Button>}
+      />
 
       <Card>
-        <CardContent className="pt-6">
-          <div className="overflow-x-auto rounded-md border">
-            <table className="w-full text-sm">
-              <thead className="bg-secondary/50">
-                <tr>
-                  <th className="px-4 py-2 text-left font-medium">Aset</th>
-                  <th className="px-4 py-2 text-left font-medium">Perpindahan</th>
-                  <th className="px-4 py-2 text-left font-medium">Alasan</th>
-                  <th className="px-4 py-2 text-left font-medium">Tanggal</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.length === 0 ? (
-                  <tr><td colSpan={4} className="px-4 py-6 text-center text-muted-foreground">Belum ada riwayat mutasi.</td></tr>
-                ) : items.map((m) => (
-                  <tr key={m.id} className="border-t">
-                    <td className="px-4 py-2">{m.asset?.name ?? '-'}</td>
-                    <td className="px-4 py-2 flex items-center gap-1">
-                      {roomName(m.from_room_id)} <ArrowRight className="h-3 w-3 text-muted-foreground" /> {roomName(m.to_room_id)}
-                    </td>
-                    <td className="px-4 py-2">{m.reason}</td>
-                    <td className="px-4 py-2">{formatDate(m.mutation_date)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
+        <div className="p-5 md:p-6">
+          <DataTable<AssetMutation>
+            columns={columns}
+            data={items}
+            loading={loading}
+            onRefresh={load}
+            exportFileName="mutasi-barang"
+            searchPlaceholder="Cari aset atau alasan..."
+            searchText={(m) => `${m.asset?.name ?? ''} ${m.reason}`}
+            emptyTitle="Belum ada riwayat mutasi"
+            emptyDescription="Catat perpindahan aset pertama menggunakan tombol di atas."
+          />
+        </div>
       </Card>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>Catat Mutasi Barang</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <div className="space-y-1.5">
-              <Label>Aset</Label>
-              <Select value={form.asset_id} onValueChange={(v) => setForm({ ...form, asset_id: v })}>
-                <SelectTrigger><SelectValue placeholder="Pilih aset" /></SelectTrigger>
-                <SelectContent>{assets.map((a) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Ruangan Tujuan</Label>
-              <Select value={form.to_room_id ?? undefined} onValueChange={(v) => setForm({ ...form, to_room_id: v })}>
-                <SelectTrigger><SelectValue placeholder="Pilih ruangan tujuan" /></SelectTrigger>
-                <SelectContent>{rooms.map((r) => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Tanggal Mutasi</Label>
-              <Input type="date" value={form.mutation_date?.slice(0, 10) ?? ''} onChange={(e) => setForm({ ...form, mutation_date: e.target.value })} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Alasan Mutasi</Label>
-              <Input value={form.reason ?? ''} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder="Contoh: Reorganisasi ruang kerja" />
-            </div>
+            <FormSelect label="Aset" placeholder="Pilih aset" value={form.asset_id} onValueChange={(v) => setForm({ ...form, asset_id: v })} options={assets.map((a) => ({ value: a.id, label: a.name }))} required />
+            <FormSelect label="Ruangan Tujuan" placeholder="Pilih ruangan tujuan" value={form.to_room_id ?? undefined} onValueChange={(v) => setForm({ ...form, to_room_id: v })} options={rooms.map((r) => ({ value: r.id, label: r.name }))} required />
+            <FormField label="Tanggal Mutasi" type="date" value={form.mutation_date?.slice(0, 10) ?? ''} onChange={(e) => setForm({ ...form, mutation_date: e.target.value })} />
+            <FormField label="Alasan Mutasi" value={form.reason ?? ''} onChange={(e) => setForm({ ...form, reason: e.target.value })} hint="Contoh: Reorganisasi ruang kerja" required />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Batal</Button>

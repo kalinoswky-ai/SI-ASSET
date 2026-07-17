@@ -1,12 +1,14 @@
 import { useState } from 'react'
-import { FileSpreadsheet, FileText } from 'lucide-react'
+import { FileSpreadsheet, FileText, FileBarChart } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { formatDate, formatRupiah } from '@/lib/utils'
+import { PageHeader } from '@/components/shared/PageHeader'
+import { useToast } from '@/components/shared/Toast'
+import { formatDate } from '@/lib/utils'
 import type { Asset } from '@/types'
 
 const reportTypes = [
@@ -19,6 +21,7 @@ const reportTypes = [
 ]
 
 export default function LaporanPage() {
+  const { toast } = useToast()
   const [loadingKey, setLoadingKey] = useState<string | null>(null)
 
   async function fetchData(key: string) {
@@ -103,6 +106,7 @@ export default function LaporanPage() {
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, title.slice(0, 31))
     XLSX.writeFile(wb, `${key}.xlsx`)
+    toast('Laporan Excel berhasil diunduh', 'success')
     setLoadingKey(null)
   }
 
@@ -127,21 +131,27 @@ export default function LaporanPage() {
       doc.text('Tidak ada data.', 14, 30)
     }
     doc.save(`${key}.pdf`)
+    toast('Laporan PDF berhasil diunduh', 'success')
     setLoadingKey(null)
   }
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold">Laporan</h1>
-        <p className="text-muted-foreground text-sm">Unduh laporan inventaris dalam format Excel atau PDF</p>
-      </div>
+    <div>
+      <PageHeader
+        title="Laporan"
+        description="Unduh laporan inventaris dalam format Excel atau PDF"
+        icon={FileBarChart}
+        crumbs={[{ label: 'Laporan' }]}
+      />
 
-      <div className="grid md:grid-cols-2 gap-4">
-        {reportTypes.map((r) => (
-          <Card key={r.key}>
+      <div className="grid gap-4 md:grid-cols-2">
+        {reportTypes.map((r, idx) => (
+          <Card key={r.key} className="eams-fade-in group transition-all duration-300 hover:-translate-y-0.5" style={{ animationDelay: `${idx * 40}ms` }}>
             <CardHeader>
-              <CardTitle className="text-base">{r.title}</CardTitle>
+              <div className="mb-1 flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-brand-blue to-brand-indigo text-white shadow-md shadow-brand-indigo/20">
+                <FileBarChart className="h-5 w-5" />
+              </div>
+              <CardTitle>{r.title}</CardTitle>
               <CardDescription>{r.description}</CardDescription>
             </CardHeader>
             <CardContent className="flex gap-2">
