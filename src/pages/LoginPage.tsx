@@ -48,11 +48,11 @@ export default function LoginPage() {
 
   return (
     <MotionConfig reducedMotion="user">
-    <div className="relative flex min-h-screen w-full overflow-hidden bg-brand-navy font-sans">
+    <div className="relative grid min-h-screen w-full grid-cols-1 overflow-hidden bg-brand-navy font-sans lg:grid-cols-[1.4fr_1fr]">
       <HeroPanel />
 
       {/* Right side: floating glass login card */}
-      <div className="relative flex w-full flex-1 items-center justify-center overflow-hidden bg-brand-navy-deep p-4 sm:p-8">
+      <div className="relative flex items-center justify-center overflow-hidden bg-brand-navy-deep p-4 sm:p-8">
         <AnimatedBackdrop />
 
         <motion.div

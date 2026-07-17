@@ -1,24 +1,24 @@
 import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion'
 import { useCallback } from 'react'
-import { Boxes, Radar, ShieldCheck } from 'lucide-react'
+import { ShieldCheck, TrendingUp, LayoutGrid } from 'lucide-react'
 import rumahAdatSumba from '@/assets/login/rumah-adat-sumba.jpg'
 import logoSumbaBarat from '@/assets/login/logo-sumba-barat.png'
 
 const features = [
   {
-    icon: Boxes,
-    title: 'Manajemen Aset Terintegrasi',
-    desc: 'Seluruh siklus aset tercatat dalam satu sistem, dari pengadaan hingga penghapusan.',
-  },
-  {
-    icon: Radar,
-    title: 'Monitoring Real-Time',
-    desc: 'Pantau kondisi, lokasi, dan status aset kapan saja secara langsung.',
-  },
-  {
     icon: ShieldCheck,
-    title: 'Keamanan Data Berlapis',
-    desc: 'Akses berbasis peran dan enkripsi menjaga data tetap aman dan akuntabel.',
+    title: 'Aman & Terpercaya',
+    desc: 'Sistem keamanan berlapis melindungi data aset daerah.',
+  },
+  {
+    icon: TrendingUp,
+    title: 'Data Real-Time',
+    desc: 'Informasi aset selalu update dan akurat setiap saat.',
+  },
+  {
+    icon: LayoutGrid,
+    title: 'Manajemen Terpadu',
+    desc: 'Kelola seluruh aset dalam satu sistem terintegrasi.',
   },
 ]
 
@@ -71,6 +71,16 @@ export function HeroPanel() {
         aria-hidden="true"
         className="absolute right-10 top-24 h-64 w-64 rounded-full bg-brand-gold/10 blur-[100px] motion-safe:animate-pulse-glow"
       />
+
+      {/* Decorative dot grid */}
+      <div
+        aria-hidden="true"
+        className="absolute right-14 top-10 grid grid-cols-4 gap-2.5 opacity-30"
+      >
+        {Array.from({ length: 16 }).map((_, i) => (
+          <span key={i} className="h-1 w-1 rounded-full bg-white" />
+        ))}
+      </div>
 
       <div className="relative z-10 flex h-full flex-col justify-between p-10 xl:p-14">
         {/* Logo */}
@@ -127,23 +137,44 @@ export function HeroPanel() {
             untuk pelayanan publik yang lebih baik.
           </motion.p>
 
-          {/* Feature cards */}
-          <div className="mt-9 grid gap-3 sm:grid-cols-3">
+          {/* Feature list */}
+          <div className="mt-8 space-y-4">
             {features.map((f, i) => (
               <motion.div
                 key={f.title}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.5 + i * 0.12, ease: 'easeOut' }}
-                whileHover={{ y: -4 }}
-                className="rounded-2xl border border-white/15 bg-white/[0.08] p-4 shadow-lg shadow-black/10 backdrop-blur-md transition-colors hover:border-brand-gold/40"
+                initial={{ opacity: 0, x: -16 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.55, delay: 0.5 + i * 0.1, ease: 'easeOut' }}
+                className="flex items-start gap-3.5"
               >
-                <f.icon className="h-5 w-5 text-brand-gold" aria-hidden="true" />
-                <p className="mt-2.5 font-display text-[13px] font-semibold text-white">{f.title}</p>
-                <p className="mt-1 text-[12px] leading-snug text-white/60">{f.desc}</p>
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-white/[0.08] shadow-inner shadow-black/10 backdrop-blur-md">
+                  <f.icon className="h-5 w-5 text-brand-gold" aria-hidden="true" />
+                </span>
+                <div>
+                  <p className="font-display text-[14px] font-semibold text-white">{f.title}</p>
+                  <p className="mt-0.5 text-[12.5px] leading-snug text-white/60">{f.desc}</p>
+                </div>
               </motion.div>
             ))}
           </div>
+
+          {/* Cultural motto */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.9, ease: 'easeOut' }}
+            className="mt-8 flex items-center gap-3 rounded-2xl border border-white/15 bg-white/[0.06] px-4 py-3.5 backdrop-blur-md"
+          >
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-gold/15">
+              <span className="h-3 w-3 rotate-45 bg-brand-gold" aria-hidden="true" />
+            </span>
+            <div>
+              <p className="font-display text-[13px] font-bold uppercase tracking-wide text-brand-gold">
+                Pada Eweta Manda Elu
+              </p>
+              <p className="text-[12px] text-white/55">Bersatu Membangun Sumba Barat</p>
+            </div>
+          </motion.div>
         </div>
 
         <p className="text-xs text-white/40">
